@@ -17,10 +17,14 @@ def generate_matrix(size):
     return pos_semi_def_matrix
 
 def generate_lower_triangle_matrix(size):
-    triangle_matrix = np.zeros(shape=(size, size), dtype=int)
+    triangle_matrix = np.zeros(shape=(size, size))
     for x in range(size):
         for y in range(size - x):
-            triangle_matrix[size - x - 1][y] = np.random.randint(-50, 50)
+            triangle_matrix[size - x - 1][y] = np.random.normal(loc=0.0, scale=1.0, size=None)
+
+            if (size - x - 1) == y and triangle_matrix[size - x - 1][y] < 0.0:
+                triangle_matrix[size - x - 1][y] = 1.0
+
     return triangle_matrix
 
 times = []
@@ -33,7 +37,7 @@ for x in range(1, 100, 2):
 
         start_time = time.time()
         determinant = np.linalg.det(matrix)
-        # print(x, " ", determinant, "\n")
+        # print(determinant, "\n")
         end_time = time.time()
 
         # print(end_time - start_time, "\n")
@@ -41,6 +45,7 @@ for x in range(1, 100, 2):
     
     sizes.append(x)
     times.append(mean(iterations))
+
 
 plt.plot(sizes, times)
 plt.title('Determinant Computation Times')
@@ -50,7 +55,7 @@ print(sizes)
 print(times)
 plt.show()
 
-# matrix = generate_matrix(5)
+# matrix = generate_matrix(3)
 # print(matrix)
 # determinant = np.linalg.det(matrix)
 # print(determinant)
