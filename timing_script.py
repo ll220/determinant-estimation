@@ -1,7 +1,7 @@
 import numpy as np
 import time
 from statistics import mean
-from matplotlib.pyplot import plot 
+import matplotlib.pyplot as plt
 
 ITERATIONS = 30
 
@@ -42,9 +42,13 @@ for x in range(1, 100, 2):
     sizes.append(x)
     times.append(mean(iterations))
 
-# plot(sizes, times)
+plt.plot(sizes, times)
+plt.title('Determinant Computation Times')
+plt.xlabel('Sizes')
+plt.ylabel('Time (sec)')
 print(sizes)
 print(times)
+plt.show()
 
 # matrix = generate_matrix(5)
 # print(matrix)
