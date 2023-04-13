@@ -30,6 +30,9 @@ def generate_lower_triangle_matrix(size):
 times = []
 sizes = []
 
+f = open("demofile2.txt", "a")
+f.write("Determinants: \n")
+
 for x in range(1, 100, 2):
     iterations = []
     for y in range(30):
@@ -37,8 +40,9 @@ for x in range(1, 100, 2):
 
         start_time = time.time()
         determinant = np.linalg.det(matrix)
-        # print(determinant, "\n")
         end_time = time.time()
+        f.write(str(determinant.item()))
+        f.write("\n")
 
         # print(end_time - start_time, "\n")
         iterations.append(end_time - start_time)
@@ -51,9 +55,11 @@ plt.plot(sizes, times)
 plt.title('Determinant Computation Times')
 plt.xlabel('Sizes')
 plt.ylabel('Time (sec)')
-print(sizes)
-print(times)
+# print(sizes)
+# print(times)
 plt.show()
+
+f.close()
 
 # matrix = generate_matrix(3)
 # print(matrix)
