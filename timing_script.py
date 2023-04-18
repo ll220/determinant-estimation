@@ -5,6 +5,13 @@ import matplotlib.pyplot as plt
 
 ITERATIONS = 30
 
+RANDOM_MEAN = 0.0
+RANDOM_ST = 5.0
+
+MAXIMUM = 500
+STEP_SIZE = 20
+# tend to start hitting the overflow errors with standard deviation 5.0 and mean 0.0 at around max size 190
+
 def generate_matrix(size):
     triangle_matrix = generate_lower_triangle_matrix(size)
     transpose = triangle_matrix.transpose()
@@ -20,7 +27,7 @@ def generate_lower_triangle_matrix(size):
     triangle_matrix = np.zeros(shape=(size, size))
     for x in range(size):
         for y in range(size - x):
-            triangle_matrix[size - x - 1][y] = np.random.normal(loc=0.0, scale=1.0, size=None)
+            triangle_matrix[size - x - 1][y] = np.random.normal(loc=RANDOM_MEAN, scale=RANDOM_ST, size=None)
 
             if (size - x - 1) == y and triangle_matrix[size - x - 1][y] < 0.0:
                 triangle_matrix[size - x - 1][y] = 1.0
@@ -33,7 +40,8 @@ sizes = []
 f = open("demofile2.txt", "a")
 f.write("Determinants: \n")
 
-for x in range(1, 100, 2):
+
+for x in range(1, MAXIMUM, STEP_SIZE):
     iterations = []
     for y in range(30):
         matrix = generate_matrix(x)
@@ -50,9 +58,10 @@ for x in range(1, 100, 2):
     sizes.append(x)
     times.append(mean(iterations))
 
+plot_title = "Determinant Computation Times Standard dev: " + str(RANDOM_ST)
 
 plt.plot(sizes, times)
-plt.title('Determinant Computation Times')
+plt.title(plot_title)
 plt.xlabel('Sizes')
 plt.ylabel('Time (sec)')
 # print(sizes)
