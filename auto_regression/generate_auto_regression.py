@@ -2,29 +2,30 @@ import numpy as np
 import time
 from statistics import mean
 import matplotlib.pyplot as plt
+from operator import itemgetter
 
 NUM_VALUES = 100
 
-A1 = 0.5
-A2 = 20.0
+A = np.array([[0.2, 0.4], [0.2, 0.3]])  # A[0][0] + A[1][0] < 1 seems to work best
+                                        # same with A[0][1] + A[1][1]
 
-C1 = 2.0
-C2 = 4.0
+C = np.array([[2.0], [4.0]])
 
-FIRST_Y1 = 5.0
-FIRST_Y2 = 50.0
+Y1 = np.array([[5.0], [50.0]])
+
 
 SIGMA1 = 5.0
 SIGMA2 = 20.0
 
 
-def generate_curr_y(sigma, prev_y_one, prev_y_two): 
+def generate_curr_y(sigma, prev_y): 
     e1, e2 = generate_error(sigma)
 
-    curr_y1 = prev_y_one * A1 + C1 + e1
-    curr_y2 = prev_y_two * A1 + C2 + e2
+    error_val = np.array([[e1], [e2]])
 
-    return curr_y1, curr_y2
+    curr_y = np.matmul(A, prev_y) + C + error_val
+
+    return curr_y
 
 
 def generate_error(sigma):
@@ -32,25 +33,26 @@ def generate_error(sigma):
     e2 = np.random.normal(loc=0, scale=sigma, size=None)
 
     return e1, e2
- 
-curr_y1 = FIRST_Y1
-curr_y2 = FIRST_Y2
 
-y1_values = []
-y2_values = []
+curr_y = Y1
+y_values = []
 
 for x in range(NUM_VALUES - 1):
-    y1_values.append(curr_y1)
-    y2_values.append(curr_y2)
-    curr_y1, curr_y2 = generate_curr_y(SIGMA1, curr_y1, curr_y2)
+    y_values.append(curr_y)
+    curr_y = generate_curr_y(SIGMA1, curr_y)
 
 
 for x in range(NUM_VALUES):
-    y1_values.append(curr_y1)
-    y2_values.append(curr_y2)
-    curr_y1, curr_y2 = generate_curr_y(SIGMA2, curr_y1, curr_y2)
+    y_values.append(curr_y)
+    curr_y = generate_curr_y(SIGMA2, curr_y)
 
+# y1_values = y_values[:, 0]
+y1_values = []
+y2_values = []
 
+for y in y_values:
+    y1_values.append(y[0][0])
+    y2_values.append(y[1][0])
 
 plt.plot(y1_values)
 plt.title("Y1 values using autoregression")
