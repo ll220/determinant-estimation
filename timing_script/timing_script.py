@@ -8,8 +8,8 @@ ITERATIONS = 30
 RANDOM_MEAN = 0.0
 RANDOM_ST = 5.0
 
-MAXIMUM = 500
-STEP_SIZE = 20
+MAXIMUM = 10000
+STEP_SIZE = 500
 # tend to start hitting the overflow errors with standard deviation 5.0 and mean 0.0 at around max size 190
 
 def generate_matrix(size):
@@ -47,10 +47,12 @@ for x in range(1, MAXIMUM, STEP_SIZE):
         matrix = generate_matrix(x)
 
         start_time = time.time()
-        determinant = np.linalg.det(matrix)
+        (sign, logdet) = np.linalg.slogdet(matrix)
         end_time = time.time()
-        f.write(str(determinant.item()))
+        file_string = str(sign) + " " + str(logdet)
+        f.write(file_string)
         f.write("\n")
+        print(file_string)
 
         # print(end_time - start_time, "\n")
         iterations.append(end_time - start_time)
@@ -58,7 +60,7 @@ for x in range(1, MAXIMUM, STEP_SIZE):
     sizes.append(x)
     times.append(mean(iterations))
 
-plot_title = "Determinant Computation Times Standard dev: " + str(RANDOM_ST)
+plot_title = "Log Determinant Computation Times Standard dev: " + str(RANDOM_ST)
 
 plt.plot(sizes, times)
 plt.title(plot_title)
@@ -66,6 +68,7 @@ plt.xlabel('Sizes')
 plt.ylabel('Time (sec)')
 # print(sizes)
 # print(times)
+plt.savefig('log_ten_thousand_the_second.png')
 plt.show()
 
 f.close()
