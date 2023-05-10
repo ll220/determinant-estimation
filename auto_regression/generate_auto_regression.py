@@ -7,12 +7,12 @@ from operator import itemgetter
 CHANGE_RANGE = 100
 TOTAL_VALS = 2 * CHANGE_RANGE
 
-A = np.array([[0.0, 0.0], [0.0, 0.0]])  # A[0][0] + A[1][0] < 1 seems to work best
+A = [0.9, 0.1]  # A[0][0] + A[1][0] < 1 seems to work best
                                         # same with A[0][1] + A[1][1]
 
-C = np.array([[0.0], [0.0]])
+C = [0.1, 0.9]
 
-Y1 = np.array([[0.0], [0.0]])
+Y1 = [0.0, 0.0]
 
 
 COV1 = [[1.0, 0], [0, 1.0]]
@@ -21,36 +21,37 @@ RANDOM_MEAN = [0, 0]
 
 
 
-def generate_curr_y(cov, prev_y): 
+def generate_curr_y(cov, prev_y1, prev_y2): 
     e1, e2 = np.random.multivariate_normal(RANDOM_MEAN, cov)
 
     error_val = np.array([[e1], [e2]])
 
-    curr_y = np.matmul(A, prev_y) + C + error_val
+    y1 = A[0] * prev_y1 + C[0] + e1
+    y2 = A[1] * prev_y2 + C[1] + e2
 
-    return curr_y, error_val
+    return y1, y2, error_val
 
 def generate_autoregression():
-    curr_y = Y1
-    y_values = []
+    curr_y1 = Y1[0]
+    curr_y2 = Y1[1]
+    y1_values = []
+    y2_values = []
     error_vals = []
 
     for x in range(CHANGE_RANGE):
-        curr_y, error_val = generate_curr_y(COV1, curr_y)
-        y_values.append(curr_y)
+        curr_y1, curr_y2, error_val = generate_curr_y(COV1, curr_y1, curr_y2)
+        y1_values.append(curr_y1)
+        y2_values.append(curr_y2)
+
         error_vals.append(error_val)
 
     for x in range(CHANGE_RANGE):
-        curr_y, error_val = generate_curr_y(COV2, curr_y)
-        y_values.append(curr_y)
+        curr_y1, curr_y2, error_val = generate_curr_y(COV2, curr_y1, curr_y2)
+        y1_values.append(curr_y1)
+        y2_values.append(curr_y2)
+
         error_vals.append(error_val)
 
-    y1_values = []
-    y2_values = []
-
-    for y in y_values:
-        y1_values.append(y[0][0])
-        y2_values.append(y[1][0])
 
     return y1_values, y2_values, error_vals
 
@@ -73,7 +74,7 @@ def calculate_S(error_vals, h):
     (sign1, logdet1) = np.linalg.slogdet(s1_matrix)
     s1 = sign1 * logdet1
 
-    for i in range(h, TOTAL_VALS):
+    for i in range(h, TOTAL_VALS - 2):
         error_val = error_vals[i]
         numerator = np.matmul(error_val, np.transpose(error_val))
 
@@ -97,7 +98,7 @@ def calculate_S(error_vals, h):
 def calculate_statistics(error_vals):
     statistics = []
 
-    for i in range(1, TOTAL_VALS - 1):
+    for i in range(1, TOTAL_VALS - 2):
         s, s1, s2 = calculate_S(error_vals, i)
         v = float(i / TOTAL_VALS)
 
@@ -106,31 +107,63 @@ def calculate_statistics(error_vals):
 
     return statistics
     
+def plot_values(values, title, times_label, values_label):
+    plt.plot(values)
+    plt.title(title)
+    plt.xlabel(times_label)
+    plt.ylabel(values_label)
+    plt.show()
 
-    
+def generate_linear_regression_matrix(values):
+    x_matrix = []
+    y_matrix = []
+
+    for i in range(2, TOTAL_VALS):
+        y_matrix.append(values[i])
+        x_matrix.append([values[i-1], 1])
+
+    return np.array(y_matrix), np.array(x_matrix)
+
+def calculate_a(x_values, y_values):
+    x_transpose = x_values.transpose()
+
+    first_bit = np.linalg.inv(np.matmul(x_transpose, x_values))
+    second_bit = np.matmul(first_bit, x_transpose)
+    a_matrix = np.matmul(second_bit, y_values)
+    return a_matrix 
+
+def calculate_error(a1_matrix, a2_matrix, y1_values, y2_values):
+    error_vals = []
+    for i in range(1, TOTAL_VALS): 
+        error_val1 = y1_values[i] - a1_matrix[0] * y1_values[i-1] - a1_matrix[1]
+        error_val2 = y2_values[i] - a2_matrix[0] * y2_values[i-1] - a2_matrix[1]
+        error_vals.append(np.array([[error_val1], [error_val2]]))
+
+    return error_vals
+
+
 
 
 y1_values, y2_values, error_vals = generate_autoregression()
+# plot_values(y1_values, "Y1 values using autoregression", "Times", "Y1 values")
+# plot_values(y2_values, "Y2 values using autoregression", "Times", "Y2 values")
 
-plt.plot(y1_values)
-plt.title("Y1 values using autoregression")
-plt.xlabel('Times')
-plt.ylabel('Y1 values')
-plt.show()
+y1_matrix, x1_matrix = generate_linear_regression_matrix(y1_values)
+a1_matrix = calculate_a(x1_matrix, y1_matrix)
+print(a1_matrix)
 
-plt.plot(y2_values)
-plt.title("Y2 values using autoregression")
-plt.xlabel('Times')
-plt.ylabel('Y2 values')
-plt.show()
+y2_matrix, x2_matrix = generate_linear_regression_matrix(y2_values)
+a2_matrix = calculate_a(x2_matrix, y2_matrix)
+print(a2_matrix)
 
-statistics = calculate_statistics(error_vals)
+recalculated_error = calculate_error(a1_matrix, a2_matrix, y1_values, y2_values)
+estimate_statistics = calculate_statistics(recalculated_error)
+plot_values(estimate_statistics, "Estimated LRT Statistics", "Times - 2", "Estimated LRT values")
 
-plt.plot(statistics)
-plt.title("LRT Statistics")
-plt.xlabel('Times - 2')
-plt.ylabel('LRT values')
-plt.show()
+
+# statistics = calculate_statistics(error_vals)
+# plot_values(statistics, "LRT Statistics", "Times - 2", "LRT values")
+
 
 
 
