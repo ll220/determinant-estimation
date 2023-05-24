@@ -3,6 +3,7 @@ import time
 from statistics import mean
 import matplotlib.pyplot as plt
 from operator import itemgetter
+from scipy import stats
 
 CHANGE_RANGE = 100
 TOTAL_VALS = 2 * CHANGE_RANGE
@@ -160,6 +161,11 @@ recalculated_error = calculate_error(a1_matrix, a2_matrix, y1_values, y2_values)
 estimate_statistics = calculate_statistics(recalculated_error)
 plot_values(estimate_statistics, "Estimated LRT Statistics", "Times - 2", "Estimated LRT values")
 
+
+for x in estimate_statistics:
+    p_value = stats.chi2.cdf(x, 3)
+    print("P_value for: ")
+    print(p_value)
 
 # statistics = calculate_statistics(error_vals)
 # plot_values(statistics, "LRT Statistics", "Times - 2", "LRT values")
