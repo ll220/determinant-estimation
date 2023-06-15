@@ -125,3 +125,6 @@ test_matrix = np.matmul(test_matrix, q_matrix)
 print("test matrix: ")
 print(test_matrix)
 print("\n")
+
+print(np.linalg.det(a))
+print(np.linalg.det(finished_tridiag))
