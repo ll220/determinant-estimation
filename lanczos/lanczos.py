@@ -8,8 +8,6 @@ import math
 
 DIM = 3
 
-q_transpose = []
-
 tridiag_matrix = []
 
 
@@ -26,11 +24,11 @@ def set_up_a_matrix():
     return a_symm
 
 def generate_b_vector_q1():
-    b_vector = np.random.randint(0, 10, size=(DIM))
+    b_vector = np.random.randint(0, 10, size=(DIM, 1))
 
     b_magnitude = 0
     for i in range(DIM):
-        b_magnitude += pow(b_vector[i], 2)
+        b_magnitude += pow(b_vector[i][0], 2)
 
     b_magnitude = math.sqrt(b_magnitude)
     q1 = np.divide(b_vector, b_magnitude)
@@ -42,18 +40,20 @@ def generate_b_vector_q1():
 
 
 def lanczos_iteration(a, q1):
-    q_n_minus_1_transpose = np.array([0] * DIM).transpose()
-    qn_transpose = q1
+    q_matrix = q1
 
+    q_n_minus_1 = np.array([[0] * DIM])
+    q_n_minus_1 = q_n_minus_1.transpose()
+
+    qn = q1
     beta_n_minus_1 = 0
     beta_n = 0
 
     for n in range(1, DIM + 1):
         print("iteration n = ", str(n))
-        v = np.matmul(a, qn_transpose.transpose())
-        alpha_n = np.matmul(qn_transpose, v)
-        v = np.array(v) - (q_n_minus_1_transpose.transpose() * beta_n_minus_1) - (qn_transpose.transpose() * alpha_n)
-
+        v = np.matmul(a, qn)
+        alpha_n = (np.matmul(qn.transpose(), v))[0][0]
+        v = np.array(v) - (q_n_minus_1 * beta_n_minus_1) - (qn * alpha_n)
         beta_n = math.sqrt(sum(pow(i, 2) for i in v))
 
         print("alpha n: ", str(alpha_n))
@@ -63,16 +63,19 @@ def lanczos_iteration(a, q1):
         print(qn)
         print("\n")
 
-        q_transpose.append(qn)
         append_tridiag_matrix(n, alpha_n, beta_n, beta_n_minus_1)
 
-        q_n_plus_1 = np.divide(v, beta_n)
-        q_n_minus_1 = qn
-        qn = q_n_plus_1
+        if (n != DIM):
+            q_n_plus_1 = np.divide(v, beta_n)
+            q_n_minus_1 = qn
+            qn = q_n_plus_1
 
-        beta_n_minus_1 = beta_n
+            q_matrix = np.concatenate((q_matrix, qn), axis=1)
 
-        # print(np.array(q_transpose).transpose())
+            beta_n_minus_1 = beta_n
+
+    return q_matrix
+
 
 def append_tridiag_matrix(n, alpha_n, beta_n, beta_n_minus_1):
     row = []
@@ -101,18 +104,11 @@ def append_tridiag_matrix(n, alpha_n, beta_n, beta_n_minus_1):
     tridiag_matrix.append(row)
 
 b_vector, q1 = generate_b_vector_q1()
+q_matrix = q1
 a = set_up_a_matrix()
 
-lanczos_iteration(a, q1)
+q_matrix = lanczos_iteration(a, q1)
 
-# print(np.array(q_transpose).transpose())
-# print(np.array(tridiag_matrix))
-
-test_matrix = np.matmul(np.linalg.inv(np.array(q_transpose).transpose()), a)
-test_matrix = np.matmul(test_matrix, np.array(q_transpose).transpose())
-# print(test_matrix)
-
-q_matrix = np.array(q_transpose).transpose()
 finished_tridiag = np.array(tridiag_matrix)
 
 print("q matrix: ")
@@ -123,3 +119,9 @@ print("tridiagonal matrix: ")
 print(finished_tridiag)
 print("\n")
 
+test_matrix = np.matmul(np.linalg.inv(q_matrix), a)
+test_matrix = np.matmul(test_matrix, q_matrix)
+
+print("test matrix: ")
+print(test_matrix)
+print("\n")
