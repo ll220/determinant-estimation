@@ -9,12 +9,12 @@ import math
 
 LOGGING = False
 DIM = 5
-N = 5
+N = 4
 
 tridiag_matrix = []
 
 
-RANDOM_MEAN = 0
+RANDOM_MEAN = 10
 RANDOM_ST = 10
 
 
