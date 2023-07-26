@@ -5,21 +5,23 @@ import matplotlib.pyplot as plt
 from operator import itemgetter
 from scipy import stats
 import math
+from scipy.linalg import eigh_tridiagonal
 
 
-LOGGING = False
-DIM = 5
-N = 4
+
+LOGGING = True
+DIM = 10
+N = 10
 
 tridiag_matrix = []
 
 
-RANDOM_MEAN = 10
-RANDOM_ST = 10
+RANDOM_MEAN = 5
+RANDOM_ST = 5
 
 
-def set_up_a_matrix(size):
-    triangle_matrix = generate_lower_triangle_matrix(size)
+def set_up_a_matrix():
+    triangle_matrix = generate_lower_triangle_matrix()
     transpose = triangle_matrix.transpose()
     
     pos_semi_def_matrix = np.matmul(triangle_matrix, transpose)
@@ -29,14 +31,14 @@ def set_up_a_matrix(size):
     # print("\n\n Random Positive Semi-Definite matrix size ", size, ": \n", pos_semi_def_matrix)
     return pos_semi_def_matrix
 
-def generate_lower_triangle_matrix(size):
-    triangle_matrix = np.zeros(shape=(size, size))
-    for x in range(size):
-        for y in range(size - x):
-            triangle_matrix[size - x - 1][y] = np.random.normal(loc=RANDOM_MEAN, scale=RANDOM_ST, size=None)
+def generate_lower_triangle_matrix():
+    triangle_matrix = np.zeros(shape=(DIM, DIM))
+    for x in range(DIM):
+        for y in range(DIM - x):
+            triangle_matrix[DIM - x - 1][y] = abs(np.random.normal(loc=RANDOM_MEAN, scale=RANDOM_ST, size=None))
 
-            if (size - x - 1) == y and triangle_matrix[size - x - 1][y] < 0.0:
-                triangle_matrix[size - x - 1][y] = 1.0
+            # if (DIM - x - 1) == y and triangle_matrix[DIM - x - 1][y] < 0.0:
+            #     triangle_matrix[DIM - x - 1][y] = 1.0
 
     return triangle_matrix
 
@@ -130,13 +132,11 @@ def calculate_determinant(tridiag_matrix):
 
 b_vector, q1 = generate_b_vector_q1()
 q_matrix = q1
-a = set_up_a_matrix(DIM)
+a = set_up_a_matrix()
 
-print(a)
-
-a_log = np.log(a)
-print("a log:")
-print(a_log)
+if(LOGGING):
+    print("a: ")
+    print(a)
 
 q_matrix = lanczos_iteration(a, q1)
 
@@ -147,9 +147,9 @@ if(LOGGING):
     print(q_matrix)
     print("\n")
 
-    print("tridiagonal matrix: ")
-    print(finished_tridiag)
-    print("\n")
+    # print("tridiagonal matrix: ")
+    # print(finished_tridiag)
+    # print("\n")
 
 sub_tridiag_matrix = finished_tridiag[0:N, 0:N]
 
@@ -168,5 +168,15 @@ if(LOGGING):
     print(test_matrix)
     print("\n")
 
-print(np.linalg.det(a))
-print(np.linalg.det(sub_tridiag_matrix))
+print(np.linalg.eigvalsh(a))
+d = []
+e = []
+
+for n in range(N):
+    d.append(sub_tridiag_matrix[n][n])
+
+for n in range(N - 1):
+    e.append(sub_tridiag_matrix[n][n+1])
+
+w, v = eigh_tridiagonal(d, e)
+print(w)
