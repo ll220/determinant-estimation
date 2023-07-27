@@ -9,16 +9,20 @@ from scipy.linalg import eigh_tridiagonal
 
 
 
-LOGGING = True
-DIM = 10
-N = 10
+LANCZOS_LOGGING = False
+VALUES_LOGGING = False
+E_LOGGING = True
 
-tridiag_matrix = []
-
+NUM_V = 1
+DIM = 5
+N = 5
 
 RANDOM_MEAN = 5
 RANDOM_ST = 5
 
+E_ONE_T = np.array([[1] + [0] * (N - 1)])
+
+DET_EST = 0
 
 def set_up_a_matrix():
     triangle_matrix = generate_lower_triangle_matrix()
@@ -43,8 +47,9 @@ def generate_lower_triangle_matrix():
     return triangle_matrix
 
 
-def generate_b_vector_q1():
-    b_vector = np.random.randint(0, 10, size=(DIM, 1))
+def generate_rademacher_vector_and_q1():
+    list = np.array([np.random.choice([1, -1], p=[0.5, 0.5], size=(DIM))])
+    b_vector = list.transpose()
 
     b_magnitude = 0
     for i in range(DIM):
@@ -53,14 +58,11 @@ def generate_b_vector_q1():
     b_magnitude = math.sqrt(b_magnitude)
     q1 = np.divide(b_vector, b_magnitude)
 
-    if(LOGGING):
-        print("b vector: ")
-        print(b_vector)
-        print("\n")
     return b_vector, q1
 
 
 def lanczos_iteration(a, q1):
+    tridiag_matrix = []
     q_matrix = q1
 
     q_n_minus_1 = np.array([[0] * DIM])
@@ -71,7 +73,7 @@ def lanczos_iteration(a, q1):
     beta_n = 0
 
     for n in range(1, N + 1):
-        if(LOGGING):
+        if(LANCZOS_LOGGING):
             print("iteration n = ", str(n))
 
         v = np.matmul(a, qn)
@@ -79,7 +81,7 @@ def lanczos_iteration(a, q1):
         v = np.array(v) - (q_n_minus_1 * beta_n_minus_1) - (qn * alpha_n)
         beta_n = math.sqrt(sum(pow(i, 2) for i in v))
 
-        if(LOGGING):
+        if(LANCZOS_LOGGING):
             print("alpha n: ", str(alpha_n))
             print("beta n: ", str(beta_n))
             print("beta n - 1: ", str(beta_n_minus_1))
@@ -87,7 +89,7 @@ def lanczos_iteration(a, q1):
             print(qn)
             print("\n")
 
-        append_tridiag_matrix(n, alpha_n, beta_n, beta_n_minus_1)
+        tridiag_matrix = append_tridiag_matrix(tridiag_matrix, n, alpha_n, beta_n, beta_n_minus_1)
 
         if (n < N):
             q_n_plus_1 = np.divide(v, beta_n)
@@ -98,10 +100,10 @@ def lanczos_iteration(a, q1):
 
             beta_n_minus_1 = beta_n
 
-    return q_matrix
+    return q_matrix, np.array(tridiag_matrix)
 
 
-def append_tridiag_matrix(n, alpha_n, beta_n, beta_n_minus_1):
+def append_tridiag_matrix(tridiag_matrix, n, alpha_n, beta_n, beta_n_minus_1):
     row = []
 
     if (n == 1):
@@ -126,57 +128,67 @@ def append_tridiag_matrix(n, alpha_n, beta_n, beta_n_minus_1):
         row = row + second_half
 
     tridiag_matrix.append(row)
-
-def calculate_determinant(tridiag_matrix):
-    None
-
-b_vector, q1 = generate_b_vector_q1()
-q_matrix = q1
-a = set_up_a_matrix()
-
-if(LOGGING):
-    print("a: ")
-    print(a)
-
-q_matrix = lanczos_iteration(a, q1)
-
-finished_tridiag = np.array(tridiag_matrix)
-
-if(LOGGING):
-    print("q matrix: ")
-    print(q_matrix)
-    print("\n")
-
-    # print("tridiagonal matrix: ")
-    # print(finished_tridiag)
-    # print("\n")
-
-sub_tridiag_matrix = finished_tridiag[0:N, 0:N]
-
-if(LOGGING):
-    print("sub tridiagonal matrix: ")
-    print(sub_tridiag_matrix)
-    print("\n")
+    return tridiag_matrix
 
 
-if(LOGGING):
-    test_matrix = np.matmul(q_matrix.transpose(), a)
-    test_matrix = np.matmul(test_matrix, q_matrix)
 
-if(LOGGING):
-    print("test matrix: ")
-    print(test_matrix)
-    print("\n")
+for i in range(NUM_V):
+    input_vector, q1 = generate_rademacher_vector_and_q1()
+    q_matrix = q1
+    a = set_up_a_matrix()
 
-print(np.linalg.eigvalsh(a))
-d = []
-e = []
+    q_matrix, tridiag_matrix = lanczos_iteration(a, q1)
 
-for n in range(N):
-    d.append(sub_tridiag_matrix[n][n])
+    sub_tridiag_matrix = tridiag_matrix[0:N, 0:N]
 
-for n in range(N - 1):
-    e.append(sub_tridiag_matrix[n][n+1])
+    d = []
+    e = []
 
-w, v = eigh_tridiagonal(d, e)
-print(w)
+    for n in range(N):
+        d.append(sub_tridiag_matrix[n][n])
+
+    for n in range(N - 1):
+        e.append(sub_tridiag_matrix[n][n+1])
+
+    evalues, evectors = eigh_tridiagonal(d, e)
+    
+    if(VALUES_LOGGING):
+        print("a: ")
+        print(a)
+        print("q matrix: ")
+        print(q_matrix)
+        print("\n")
+
+
+        print("tridiagonal matrix: ")
+        print(tridiag_matrix)
+        print("\n")
+
+        print("sub tridiagonal matrix: ")
+        print(sub_tridiag_matrix)
+        print("\n")
+
+        test_matrix = np.matmul(q_matrix.transpose(), a)
+        test_matrix = np.matmul(test_matrix, q_matrix)
+
+        print("test matrix: ")
+        print(test_matrix)
+        print("\n")
+
+    if (E_LOGGING):
+
+        print("Eigenvalues of a: ")
+        print(np.linalg.eigvalsh(a))
+
+        print("\nEigenvalues of tridiag: ")
+        print(evalues)
+        print("\nEigenvectors of tridiag: ")
+        print(evectors)
+
+    for k in range(N):
+        DET_EST = DET_EST + (evectors[k][0] * evectors[k][0] * np.log(evalues[k]))
+
+DET_EST = float(DIM / NUM_V) * DET_EST
+(sign, logabsdet) = np.linalg.slogdet(a)
+print(DET_EST)
+print(logabsdet)
