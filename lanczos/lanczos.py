@@ -143,6 +143,13 @@ def estimate_determinant(num_v, dim, m):
         input_vector, q1 = generate_rademacher_vector_and_q1(dim)
 
         q_matrix, tridiag_matrix = lanczos_iteration(dim, m, a, q1)
+        f = open("tridiag2.txt", "w")
+
+        for row in tridiag_matrix:
+            line = np.array2string(row, max_line_width=10000, formatter={'float_kind':lambda row: "%.2f" % row})
+            f.write(line)
+            f.write("\n")
+
 
         d = []
         e = []
@@ -152,7 +159,11 @@ def estimate_determinant(num_v, dim, m):
 
         for n in range(m - 1):
             e.append(tridiag_matrix[n][n+1])
-
+       
+        eigenvalues, eigenvectors = np.linalg.eig(tridiag_matrix)
+        print(eigenvalues)
+        (trisign, trilogabsdet) = np.linalg.slogdet(tridiag_matrix)
+        print(trilogabsdet)
         evalues, evectors = eigh_tridiagonal(d, e)
 
         if(VALUES_LOGGING):
@@ -199,28 +210,36 @@ def estimate_determinant(num_v, dim, m):
     # print(det_est)
     # print(sign, logabsdet)
 
+
 # act_times = []
 # est_times = []
-error_vals = []
-dims = []
+# error_vals = []
+# dims = []
 
-for x in range(5, 70, 5):
+# for x in range(5, 200, 5):
+#     average = 0.0
+#     for j in range(10):
+#         error = estimate_determinant(30, x, x)
+#         average += error
+#         # act_times.append(act_time)
+#         # est_times.append(est_time)
 
-    error = estimate_determinant(30, 70, x)
-    error_vals.append(error)
-    # act_times.append(act_time)
-    # est_times.append(est_time)
-    dims.append(x)
+#     average /= 10.0
+#     error_vals.append(average)
+#     dims.append(x)
 
+error = estimate_determinant(1, 1000, 1000)
+print(error)
 
-plot_title = "Error vs. m iterations for Matrix size 70"
+# plot_title = "Average Error vs. m Iterations with Dim 70"
 
-plt.plot(dims, error_vals, label = "Standard Calc Times")
-# plt.plot(dims, est_times, label = "Lanczos Calc Times")
-# plt.legend()
-plt.title(plot_title)
-plt.xlabel('Iterations')
-plt.ylabel('Error')
-plt.savefig('Increasing_iterations.png')
+# plt.plot(dims, error_vals)
+# # plt.plot(dims, error_vals, label = "Standard Calc Times")
+# # plt.plot(dims, est_times, label = "Lanczos Calc Times")
+# # plt.legend()
+# plt.title(plot_title)
+# plt.xlabel('Iterations')
+# plt.ylabel('Error')
+# # plt.savefig('Increasing_iterations2.png')
 
-plt.show()
+# plt.show()
