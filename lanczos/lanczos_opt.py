@@ -1,5 +1,5 @@
 import numpy as np
-import time
+import timeit
 from statistics import mean
 import matplotlib.pyplot as plt
 from operator import itemgetter
@@ -44,26 +44,19 @@ def generate_lower_triangle_matrix(dim):
 
 
 def generate_rademacher_vector_and_q1(dim):
-    list = np.array([np.random.choice([1, -1], p=[0.5, 0.5], size=(dim))])
-    b_vector = list.transpose()
+    b_vector = np.random.choice([1, -1], p=[0.5, 0.5], size=(dim, 1))
+    
+    b_magnitude = (np.linalg.norm(b_vector, axis=0))[0]
 
-    b_magnitude = 0
-    for i in range(dim):
-        b_magnitude += pow(b_vector[i][0], 2)
-
-    b_magnitude = math.sqrt(b_magnitude)
     q1 = np.divide(b_vector, b_magnitude)
 
-    return b_vector, q1
+    return q1
 
 
 def lanczos_iteration(dim, m, a, q1):
-    tridiag_matrix = []
+    tridiag_matrix = None
+    q_n_minus_1 = np.zeros((dim, 1))
     q_matrix = q1
-
-    q_n_minus_1 = np.array([[0] * dim])
-    q_n_minus_1 = q_n_minus_1.transpose()
-
     qn = q1
     beta_n_minus_1 = 0
     beta_n = 0
@@ -74,8 +67,8 @@ def lanczos_iteration(dim, m, a, q1):
 
         v = np.matmul(a, qn)
         alpha_n = (np.matmul(qn.transpose(), v))[0][0]
-        v = np.array(v) - (q_n_minus_1 * beta_n_minus_1) - (qn * alpha_n)
-        beta_n = math.sqrt(sum(pow(i, 2) for i in v))
+        v -= (q_n_minus_1 * beta_n_minus_1) - (alpha_n * qn)
+        beta_n = (np.linalg.norm(v, axis=0))[0]
 
         if(LANCZOS_LOGGING):
             print("alpha n: ", str(alpha_n))
@@ -85,46 +78,55 @@ def lanczos_iteration(dim, m, a, q1):
             print(qn)
             print("\n")
 
-        tridiag_matrix = append_tridiag_matrix(dim, tridiag_matrix, n, alpha_n, beta_n, beta_n_minus_1)
+        if (n == 1):
+            tridiag_matrix = np.array([np.concatenate(([alpha_n, beta_n], np.zeros(dim - 2)))])
+        elif(n == dim):
+            row = np.array([np.concatenate((np.zeros(dim - 2), [beta_n_minus_1, alpha_n]))])
+            tridiag_matrix = np.concatenate((tridiag_matrix, row), axis=0)
 
+        else:
+            row = np.array([np.concatenate((np.zeros(n - 2), [beta_n_minus_1, alpha_n, beta_n], np.zeros(dim - n - 1)))])
+            tridiag_matrix = np.concatenate((tridiag_matrix, row), axis=0)
+        
         if (n < m):
-            q_n_plus_1 = np.divide(v, beta_n)
             q_n_minus_1 = qn
-            qn = q_n_plus_1
+            qn = np.divide(v, beta_n)
 
             q_matrix = np.concatenate((q_matrix, qn), axis=1)
 
             beta_n_minus_1 = beta_n
 
-    return q_matrix, np.array(tridiag_matrix)
-
-
-def append_tridiag_matrix(dim, tridiag_matrix, n, alpha_n, beta_n, beta_n_minus_1):
-    row = []
-
-    if (n == 1):
-        row.append(alpha_n)
-        row.append(beta_n)
-        last_half = [0] * (dim - 2)
-        row = row + last_half
-
-    elif (n == dim):
-        first_half = [0] * (dim - 2)
-        row = row + first_half
-        row.append(beta_n_minus_1)
-        row.append(alpha_n)
-
-    else:
-        first_half = [0] * (n - 2)
-        row = row + first_half
-        row.append(beta_n_minus_1)
-        row.append(alpha_n)
-        row.append(beta_n)
-        second_half = [0] * (dim - n - 1)
-        row = row + second_half
-
-    tridiag_matrix.append(row)
+    test_matrix = np.matmul(q_matrix.transpose(), a)
+    test_matrix = np.matmul(test_matrix, q_matrix)
+    print(test_matrix)
     return tridiag_matrix
+
+# def append_tridiag_matrix(dim, tridiag_matrix, n, alpha_n, beta_n, beta_n_minus_1):
+#     row = []
+
+#     if (n == 1):
+#         row.append(alpha_n)
+#         row.append(beta_n)
+#         last_half = [0] * (dim - 2)
+#         row = row + last_half
+
+#     elif (n == dim):
+#         first_half = [0] * (dim - 2)
+#         row = row + first_half
+#         row.append(beta_n_minus_1)
+#         row.append(alpha_n)
+
+#     else:
+#         first_half = [0] * (n - 2)
+#         row = row + first_half
+#         row.append(beta_n_minus_1)
+#         row.append(alpha_n)
+#         row.append(beta_n)
+#         second_half = [0] * (dim - n - 1)
+#         row = row + second_half
+
+#     tridiag_matrix.append(row)
+#     return tridiag_matrix
 
 def estimate_determinant(num_v, dim, m):
 
@@ -140,9 +142,9 @@ def estimate_determinant(num_v, dim, m):
     # est_start_time = time.time()
     det_est = 0
     for i in range(num_v):
-        input_vector, q1 = generate_rademacher_vector_and_q1(dim)
+        q1 = generate_rademacher_vector_and_q1(dim)
 
-        q_matrix, tridiag_matrix = lanczos_iteration(dim, m, a, q1)
+        tridiag_matrix = lanczos_iteration(dim, m, a, q1)
 
         d = []
         e = []
@@ -159,7 +161,7 @@ def estimate_determinant(num_v, dim, m):
             print("a: ")
             print(a)
             print("q matrix: ")
-            print(q_matrix)
+            # print(q_matrix)
             print("\n")
 
 
@@ -171,11 +173,11 @@ def estimate_determinant(num_v, dim, m):
             # print(sub_tridiag_matrix)
             # print("\n")
 
-            test_matrix = np.matmul(q_matrix.transpose(), a)
-            test_matrix = np.matmul(test_matrix, q_matrix)
+            # test_matrix = np.matmul(q_matrix.transpose(), a)
+            # test_matrix = np.matmul(test_matrix, q_matrix)
 
             print("test matrix: ")
-            print(test_matrix)
+            # print(test_matrix)
             print("\n")
 
         if (E_LOGGING):
@@ -201,31 +203,46 @@ def estimate_determinant(num_v, dim, m):
 
 # act_times = []
 # est_times = []
-error_vals = []
-dims = []
+# error_vals = []
+# dims = []
 
-for x in range(5, 200, 5):
-    average = 0.0
-    for j in range(10):
-        error = estimate_determinant(30, x, x)
-        average += error
-        # act_times.append(act_time)
-        # est_times.append(est_time)
+# for x in range(5, 200, 5):
+#     average = 0.0
+#     for j in range(10):
+#         error = estimate_determinant(30, x, x)
+#         average += error
+#         # act_times.append(act_time)
+#         # est_times.append(est_time)
 
-    average /= 10.0
-    error_vals.append(average)
-    dims.append(x)
+#     average /= 10.0
+#     error_vals.append(average)
+#     dims.append(x)
 
 
-plot_title = "Average Error vs. m Iterations with Dim 70"
+# plot_title = "Average Error vs. m Iterations with Dim 70"
 
-plt.plot(dims, error_vals)
-# plt.plot(dims, error_vals, label = "Standard Calc Times")
-# plt.plot(dims, est_times, label = "Lanczos Calc Times")
-# plt.legend()
-plt.title(plot_title)
-plt.xlabel('Iterations')
-plt.ylabel('Error')
-# plt.savefig('Increasing_iterations2.png')
+# plt.plot(dims, error_vals)
+# # plt.plot(dims, error_vals, label = "Standard Calc Times")
+# # plt.plot(dims, est_times, label = "Lanczos Calc Times")
+# # plt.legend()
+# plt.title(plot_title)
+# plt.xlabel('Iterations')
+# plt.ylabel('Error')
+# # plt.savefig('Increasing_iterations2.png')
 
-plt.show()
+# plt.show()
+
+# times = []
+
+# for i in range(100):
+#     begin_time = timeit.default_timer()
+#     input_vector, q1 = generate_rademacher_vector_and_q1(1000000)
+#     times.append(timeit.default_timer() - begin_time)
+
+# print(min(times))
+
+a = set_up_a_matrix(5)
+q1 = generate_rademacher_vector_and_q1(5)
+tridiag_matrix = lanczos_iteration(5, 5, a, q1)
+
+# print(tridiag_matrix)

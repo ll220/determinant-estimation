@@ -1,5 +1,5 @@
 import numpy as np
-import time
+import timeit
 from statistics import mean
 import matplotlib.pyplot as plt
 from operator import itemgetter
@@ -228,8 +228,8 @@ def estimate_determinant(num_v, dim, m):
 #     error_vals.append(average)
 #     dims.append(x)
 
-error = estimate_determinant(1, 1000, 1000)
-print(error)
+# error = estimate_determinant(1, 1000, 1000)
+# print(error)
 
 # plot_title = "Average Error vs. m Iterations with Dim 70"
 
@@ -243,3 +243,12 @@ print(error)
 # # plt.savefig('Increasing_iterations2.png')
 
 # plt.show()
+
+times = []
+
+for i in range(100):
+    begin_time = timeit.default_timer()
+    input_vector, q1 = generate_rademacher_vector_and_q1(1000000)
+    times.append(timeit.default_timer() - begin_time)
+
+print(min(times))
