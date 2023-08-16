@@ -246,9 +246,15 @@ def estimate_determinant(num_v, dim, m):
 
 times = []
 
-for i in range(100):
+for i in range(10):
+    print(i)
+
+    a = set_up_a_matrix(1000)
+
     begin_time = timeit.default_timer()
-    input_vector, q1 = generate_rademacher_vector_and_q1(1000000)
+    b_vector, q1 =  generate_rademacher_vector_and_q1(1000)         
+    q_matrix, tridiag_matrix = lanczos_iteration(1000, 1000, a, q1)
     times.append(timeit.default_timer() - begin_time)
 
-print(min(times))
+print("\nMinimum of old: ", min(times))
+print("\nAverage of old: ", mean(times))

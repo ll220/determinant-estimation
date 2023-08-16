@@ -9,7 +9,7 @@ from scipy.linalg import eigh_tridiagonal
 
 
 
-LANCZOS_LOGGING = False
+LANCZOS_LOGGING = True
 VALUES_LOGGING = False
 E_LOGGING = False
 
@@ -43,9 +43,8 @@ def generate_lower_triangle_matrix(dim):
     return triangle_matrix
 
 
-def generate_rademacher_vector_and_q1(dim):
+def generate_input_vector(dim):
     b_vector = np.random.choice([1, -1], p=[0.5, 0.5], size=(dim, 1))
-    
     b_magnitude = (np.linalg.norm(b_vector, axis=0))[0]
 
     q1 = np.divide(b_vector, b_magnitude)
@@ -54,79 +53,34 @@ def generate_rademacher_vector_and_q1(dim):
 
 
 def lanczos_iteration(dim, m, a, q1):
-    tridiag_matrix = None
+    tridiag_matrix = np.zeros((m, dim))  # Initialize the tridiagonal matrix
     q_n_minus_1 = np.zeros((dim, 1))
-    q_matrix = q1
-    qn = q1
+    qn = np.copy(q1)
+
     beta_n_minus_1 = 0
     beta_n = 0
 
     for n in range(1, m + 1):
-        if(LANCZOS_LOGGING):
-            print("iteration n = ", str(n))
-
-        v = np.matmul(a, qn)
-        alpha_n = (np.matmul(qn.transpose(), v))[0][0]
-        v -= (q_n_minus_1 * beta_n_minus_1) - (alpha_n * qn)
-        beta_n = (np.linalg.norm(v, axis=0))[0]
-
-        if(LANCZOS_LOGGING):
-            print("alpha n: ", str(alpha_n))
-            print("beta n: ", str(beta_n))
-            print("beta n - 1: ", str(beta_n_minus_1))
-            print("qn: ")
-            print(qn)
-            print("\n")
-
-        if (n == 1):
-            tridiag_matrix = np.array([np.concatenate(([alpha_n, beta_n], np.zeros(dim - 2)))])
-        elif(n == dim):
-            row = np.array([np.concatenate((np.zeros(dim - 2), [beta_n_minus_1, alpha_n]))])
-            tridiag_matrix = np.concatenate((tridiag_matrix, row), axis=0)
-
-        else:
-            row = np.array([np.concatenate((np.zeros(n - 2), [beta_n_minus_1, alpha_n, beta_n], np.zeros(dim - n - 1)))])
-            tridiag_matrix = np.concatenate((tridiag_matrix, row), axis=0)
+        v = np.dot(a, qn)
+        alpha_n = np.dot(qn.transpose(), v)[0][0]
+        v -= beta_n_minus_1 * q_n_minus_1 + alpha_n * qn
+        beta_n = np.linalg.norm(v)
         
-        if (n < m):
-            q_n_minus_1 = qn
-            qn = np.divide(v, beta_n)
 
-            q_matrix = np.concatenate((q_matrix, qn), axis=1)
+        if n == 1:
+            tridiag_matrix[n - 1, 0:2] = [alpha_n, beta_n]
+        elif n == dim:
+            tridiag_matrix[n - 1, dim-2:] = [beta_n_minus_1, alpha_n]
+        else:
+            tridiag_matrix[n - 1, n - 2:n + 1] = [beta_n_minus_1, alpha_n, beta_n]
 
+        if n < m:
+            q_n_minus_1 = np.copy(qn)
+            qn = v / beta_n
             beta_n_minus_1 = beta_n
 
-    test_matrix = np.matmul(q_matrix.transpose(), a)
-    test_matrix = np.matmul(test_matrix, q_matrix)
-    print(test_matrix)
     return tridiag_matrix
 
-# def append_tridiag_matrix(dim, tridiag_matrix, n, alpha_n, beta_n, beta_n_minus_1):
-#     row = []
-
-#     if (n == 1):
-#         row.append(alpha_n)
-#         row.append(beta_n)
-#         last_half = [0] * (dim - 2)
-#         row = row + last_half
-
-#     elif (n == dim):
-#         first_half = [0] * (dim - 2)
-#         row = row + first_half
-#         row.append(beta_n_minus_1)
-#         row.append(alpha_n)
-
-#     else:
-#         first_half = [0] * (n - 2)
-#         row = row + first_half
-#         row.append(beta_n_minus_1)
-#         row.append(alpha_n)
-#         row.append(beta_n)
-#         second_half = [0] * (dim - n - 1)
-#         row = row + second_half
-
-#     tridiag_matrix.append(row)
-#     return tridiag_matrix
 
 def estimate_determinant(num_v, dim, m):
 
@@ -142,7 +96,7 @@ def estimate_determinant(num_v, dim, m):
     # est_start_time = time.time()
     det_est = 0
     for i in range(num_v):
-        q1 = generate_rademacher_vector_and_q1(dim)
+        q1 = generate_input_vector(dim)
 
         tridiag_matrix = lanczos_iteration(dim, m, a, q1)
 
@@ -241,8 +195,22 @@ def estimate_determinant(num_v, dim, m):
 
 # print(min(times))
 
-a = set_up_a_matrix(5)
-q1 = generate_rademacher_vector_and_q1(5)
-tridiag_matrix = lanczos_iteration(5, 5, a, q1)
+times = []
 
-# print(tridiag_matrix)
+for i in range(10):
+    print(i)
+    a = set_up_a_matrix(1000)
+
+    begin_time = timeit.default_timer()
+    q1 =  generate_input_vector(1000)         
+    tridiag_matrix = lanczos_iteration(1000, 1000, a, q1)
+    times.append(timeit.default_timer() - begin_time)
+
+print("\nMinimum of new: ", min(times))
+print("\nAverage of new: ", mean(times))
+
+begin_time = timeit.default_timer()
+(sign, logabsdet) = np.linalg.slogdet(a)
+act_det = sign * logabsdet
+end_time = timeit.default_timer()
+print(end_time - begin_time)
