@@ -2,14 +2,12 @@ import numpy as np
 import timeit
 from statistics import mean
 import matplotlib.pyplot as plt
-from operator import itemgetter
-from scipy import stats
 import math
-from scipy.linalg import eigh_tridiagonal
+import scipy
+from scipy.linalg.lapack import dstemr
 
 
-
-LANCZOS_LOGGING = True
+LANCZOS_LOGGING = False
 VALUES_LOGGING = False
 E_LOGGING = False
 
@@ -33,26 +31,25 @@ def set_up_a_matrix(dim):
 
 def generate_lower_triangle_matrix(dim):
     triangle_matrix = np.zeros(shape=(dim, dim))
-    for x in range(dim):
-        for y in range(dim - x):
-            triangle_matrix[dim - x - 1][y] = np.random.normal(loc=RANDOM_MEAN, scale=RANDOM_ST, size=None)
+    indices = np.triu_indices(dim)  # Get upper triangular indices
 
-            if (dim - x - 1) == y and triangle_matrix[dim - x - 1][y] < 0.0:
-                triangle_matrix[dim - x - 1][y] = 1.0
+    values = np.random.normal(loc=RANDOM_MEAN, scale=RANDOM_ST, size=indices[0].shape)
+    values[values < 0.0] = 1.0
+
+    triangle_matrix[indices] = values
 
     return triangle_matrix
 
 
 def generate_input_vector(dim):
-    b_vector = np.random.choice([1, -1], p=[0.5, 0.5], size=(dim, 1))
-    b_magnitude = (np.linalg.norm(b_vector, axis=0))[0]
-
-    q1 = np.divide(b_vector, b_magnitude)
+    b_vector = np.random.choice([-1, 1], size=(dim, 1))
+    q1 = b_vector / np.linalg.norm(b_vector)
 
     return q1
 
 
 def lanczos_iteration(dim, m, a, q1):
+    # Wait, could I actually port in a submatrix of a and q1 and only work with those? No that won't work, beta_n depends on the magnitude of v as a whole
     tridiag_matrix = np.zeros((m, dim))  # Initialize the tridiagonal matrix
     q_n_minus_1 = np.zeros((dim, 1))
     qn = np.copy(q1)
@@ -81,110 +78,81 @@ def lanczos_iteration(dim, m, a, q1):
 
     return tridiag_matrix
 
-
-def estimate_determinant(num_v, dim, m):
-
-    a = set_up_a_matrix(dim)
-
-    # act_start_time = time.time()
-    (sign, logabsdet) = np.linalg.slogdet(a)
-    act_det = sign * logabsdet
-    # act_end_time = time.time()
-
-    # act_time = act_end_time - act_start_time
-
-    # est_start_time = time.time()
+def estimate_determinant(a_matrix, num_v, dim, m):
     det_est = 0
+
     for i in range(num_v):
         q1 = generate_input_vector(dim)
-
-        tridiag_matrix = lanczos_iteration(dim, m, a, q1)
-
-        d = []
-        e = []
-
-        for n in range(m):
-            d.append(tridiag_matrix[n][n])
-
-        for n in range(m - 1):
-            e.append(tridiag_matrix[n][n+1])
-
-        evalues, evectors = eigh_tridiagonal(d, e)
-
-        if(VALUES_LOGGING):
-            print("a: ")
-            print(a)
-            print("q matrix: ")
-            # print(q_matrix)
-            print("\n")
-
-
-            print("tridiagonal matrix: ")
-            print(tridiag_matrix)
-            print("\n")
-
-            # print("sub tridiagonal matrix: ")
-            # print(sub_tridiag_matrix)
-            # print("\n")
-
-            # test_matrix = np.matmul(q_matrix.transpose(), a)
-            # test_matrix = np.matmul(test_matrix, q_matrix)
-
-            print("test matrix: ")
-            # print(test_matrix)
-            print("\n")
-
-        if (E_LOGGING):
-
-            print("Eigenvalues of a: ")
-            print(np.linalg.eigvalsh(a))
-
-            print("\nEigenvalues of tridiag: ")
-            print(evalues)
-            print("\nEigenvectors of tridiag: ")
-            print(evectors)
-
-        for k in range(m):
-            det_est = det_est + (evectors[k][0] * evectors[k][0] * np.log(evalues[k]))
-
+        tridiag_matrix = lanczos_iteration(dim, m, a_matrix, q1)
+        
+        d = tridiag_matrix.diagonal()
+        e = np.empty(m)
+        e[0:m - 1] = tridiag_matrix.diagonal(-1)
+        e[-1] = 0.0 
+                
+        # Call dstemr instead of eigh_tridiagonal
+        _, evalues, evectors, _ = dstemr(d, e, len(d), 1, m, 1, m)
+        det_est += np.sum(evectors[:, 0] ** 2 * np.log(evalues))
+    
     est_det = float(dim / num_v) * det_est
-    # est_end_time = time.time()
-    # est_time = est_end_time - est_start_time
-    error = est_det - act_det
-    return error
-    # print(det_est)
-    # print(sign, logabsdet)
+    return est_det
 
-# act_times = []
-# est_times = []
-# error_vals = []
-# dims = []
-
-# for x in range(5, 200, 5):
-#     average = 0.0
-#     for j in range(10):
-#         error = estimate_determinant(30, x, x)
-#         average += error
-#         # act_times.append(act_time)
-#         # est_times.append(est_time)
-
-#     average /= 10.0
-#     error_vals.append(average)
-#     dims.append(x)
+act_times = []
+est_times = []
+error_vals = []
+dims = []
 
 
-# plot_title = "Average Error vs. m Iterations with Dim 70"
+for dim in range(10, 1000, 50):    
+    average = 0.0
+    average_act_time = 0.0
+    average_est_time = 0.0
+    for j in range(10):
 
-# plt.plot(dims, error_vals)
-# # plt.plot(dims, error_vals, label = "Standard Calc Times")
-# # plt.plot(dims, est_times, label = "Lanczos Calc Times")
-# # plt.legend()
-# plt.title(plot_title)
+        a_matrix = set_up_a_matrix(dim)
+
+        act_begin_time = timeit.default_timer()
+        (sign, logabsdet) = np.linalg.slogdet(a_matrix)
+        act_det = sign * logabsdet
+        act_time = (timeit.default_timer() - act_begin_time)
+
+        print(dim, logabsdet)
+
+        est_begin_time = timeit.default_timer()
+        est_determinant = estimate_determinant(a_matrix, 30, dim, dim)
+        est_time = (timeit.default_timer() - est_begin_time)
+
+        average += est_determinant - act_det
+        average_act_time += act_time
+        average_est_time += est_time
+
+
+    average /= 10.0
+    average_act_time /= 10.0
+    average_est_time /= 10.0
+
+    error_vals.append(average)
+    act_times.append(average_act_time)
+    est_times.append(average_est_time)
+    dims.append(dim)
+
+
+# plot_title = "Average Error vs. Iterations with Dim=70"
 # plt.xlabel('Iterations')
 # plt.ylabel('Error')
-# # plt.savefig('Increasing_iterations2.png')
-
+# plt.plot(dims, error_vals)
+# plt.savefig('Increasing_iterations.png')
 # plt.show()
+
+plot_title = "Time vs. Dimensions for Determinant Estimations"
+plt.plot(dims, act_times, label = "Standard Calc Times")
+plt.plot(dims, est_times, label = "Lanczos Calc Times")
+plt.legend()
+plt.title(plot_title)
+plt.xlabel('Dimensions/Iterations')
+plt.ylabel('Time(sec)')
+plt.savefig('Time_updated.png')
+plt.show()
 
 # times = []
 
@@ -195,22 +163,52 @@ def estimate_determinant(num_v, dim, m):
 
 # print(min(times))
 
-times = []
 
-for i in range(10):
-    print(i)
-    a = set_up_a_matrix(1000)
 
-    begin_time = timeit.default_timer()
-    q1 =  generate_input_vector(1000)         
-    tridiag_matrix = lanczos_iteration(1000, 1000, a, q1)
-    times.append(timeit.default_timer() - begin_time)
 
-print("\nMinimum of new: ", min(times))
-print("\nAverage of new: ", mean(times))
+# a = set_up_a_matrix(5000)
 
-begin_time = timeit.default_timer()
-(sign, logabsdet) = np.linalg.slogdet(a)
-act_det = sign * logabsdet
-end_time = timeit.default_timer()
-print(end_time - begin_time)
+# q1 =  generate_input_vector(5000)         
+# tridiag_matrix = lanczos_iteration(5000, 5000, a, q1)
+
+# begin_time = timeit.default_timer()
+# eigenvalues, eigenvectors = np.linalg.eig(tridiag_matrix)
+# print(timeit.default_timer() - begin_time, "normal method")
+# eigenvalues = np.sort(eigenvalues)
+
+# begin_time = timeit.default_timer()
+# d = tridiag_matrix.diagonal()
+# e = np.empty(5000)
+# e[0:4999] = tridiag_matrix.diagonal(-1)
+# e[-1] = 0.0 
+
+# z = np.zeros((len(d), len(d)), dtype=np.float64)  # Workspace for eigenvectors
+# ifst = 1  # Index of the first eigenvalue to be computed
+# ilst = len(d)  # Index of the last eigenvalue to be computed
+# il = 1  # Index of the first eigenvalue in the desired range
+# iu = len(d)  # Index of the last eigenvalue in the desired range
+# order = 'i'  # Compute eigenvalues and eigenvectors
+
+# # Call dstemr
+# geh, meh, guh, why = dstemr(d, e, len(d), ifst, ilst, il, iu)
+# meh = np.sort(meh)
+# # geh 1= number of eigenvalues/eigenvectors
+# # meh 2= eigenvalues
+# # guh 3= eigenvectors
+# # why 4=info, 22 which means something happened in DLARRV...
+# # BUT IT WORKING
+# print(why)
+
+# # evalues, evectors = dstemr(d, e)
+# print(timeit.default_timer() - begin_time, "dstemr method")
+ 
+# set_diff = meh - eigenvalues
+# print(np.around(set_diff, decimals=5))
+
+
+
+
+# print("\nMinimum of scipy tridiag function: ", min(tridiag_times))
+# print("\nAverage of scipy tridiag function: ", mean(tridiag_times))
+# print("\nMinimum of general function: ", min(normal_times))
+# print("\nAverage of general function: ", mean(normal_times))
