@@ -20,6 +20,36 @@ E_LOGGING = False
 RANDOM_MEAN = 0
 RANDOM_ST = 5
 
+def set_up_sparse_a(dim):
+    matrix = np.zeros(shape=(dim, dim))
+    for x in range(dim):
+            for y in range(dim - x):
+                number = np.random.choice([0, 1], p=[0.5, 0.5])
+                if number == 1:
+                    number = np.random.normal(loc=RANDOM_MEAN, scale=RANDOM_ST, size=None)
+                    if (dim - x - 1) == y and number < 0.0:
+                        number *= -1
+
+                matrix[dim - x - 1][y] = number
+                matrix[y][dim - x - 1] = number
+
+    eigenvalues = np.linalg.eigvals(matrix)
+    # print(eigenvalues)
+    min_eig = np.min(eigenvalues)
+
+    while min_eig < 0.0: 
+        # print("not semi positive definite")
+        for x in range(dim):
+            matrix[x][x] += (-1 * min_eig)
+
+        eigenvalues = np.linalg.eigvals(matrix)
+        min_eig = np.min(eigenvalues)
+        # print(eigenvalues)
+    return matrix
+
+# matrix = set_up_sparse_a(6)
+# print(matrix)
+
 def set_up_a_matrix(dim):
     triangle_matrix = generate_lower_triangle_matrix(dim)
     transpose = triangle_matrix.transpose()
@@ -128,7 +158,8 @@ def append_tridiag_matrix(dim, tridiag_matrix, n, alpha_n, beta_n, beta_n_minus_
 
 def estimate_determinant(num_v, dim, m):
 
-    a = set_up_a_matrix(dim)
+    # a = set_up_a_matrix(dim)
+    a = set_up_sparse_a(dim)
 
     # act_start_time = time.time()
     (sign, logabsdet) = np.linalg.slogdet(a)
@@ -211,50 +242,50 @@ def estimate_determinant(num_v, dim, m):
     # print(sign, logabsdet)
 
 
-# act_times = []
-# est_times = []
-# error_vals = []
-# dims = []
+act_times = []
+est_times = []
+error_vals = []
+dims = []
 
-# for x in range(5, 200, 5):
-#     average = 0.0
-#     for j in range(10):
-#         error = estimate_determinant(30, x, x)
-#         average += error
-#         # act_times.append(act_time)
-#         # est_times.append(est_time)
+for x in range(5, 200, 5):
+    average = 0.0
+    for j in range(10):
+        error = estimate_determinant(30, x, x)
+        average += error
+        # act_times.append(act_time)
+        # est_times.append(est_time)
 
-#     average /= 10.0
-#     error_vals.append(average)
-#     dims.append(x)
+    average /= 10.0
+    error_vals.append(average)
+    dims.append(x)
 
 # error = estimate_determinant(1, 1000, 1000)
 # print(error)
 
-# plot_title = "Average Error vs. m Iterations with Dim 70"
+plot_title = "Average Error vs. m Iterations with Dim 70"
 
-# plt.plot(dims, error_vals)
-# # plt.plot(dims, error_vals, label = "Standard Calc Times")
-# # plt.plot(dims, est_times, label = "Lanczos Calc Times")
-# # plt.legend()
-# plt.title(plot_title)
-# plt.xlabel('Iterations')
-# plt.ylabel('Error')
-# # plt.savefig('Increasing_iterations2.png')
+plt.plot(dims, error_vals)
+# plt.plot(dims, error_vals, label = "Standard Calc Times")
+# plt.plot(dims, est_times, label = "Lanczos Calc Times")
+# plt.legend()
+plt.title(plot_title)
+plt.xlabel('Iterations')
+plt.ylabel('Error')
+# plt.savefig('Increasing_iterations2.png')
 
-# plt.show()
+plt.show()
 
-times = []
+# times = []
 
-for i in range(10):
-    print(i)
+# for i in range(10):
+#     print(i)
 
-    a = set_up_a_matrix(1000)
+#     a = set_up_sparse_a(1000)
 
-    begin_time = timeit.default_timer()
-    b_vector, q1 =  generate_rademacher_vector_and_q1(1000)         
-    q_matrix, tridiag_matrix = lanczos_iteration(1000, 1000, a, q1)
-    times.append(timeit.default_timer() - begin_time)
+#     begin_time = timeit.default_timer()
+#     b_vector, q1 =  generate_rademacher_vector_and_q1(1000)         
+#     q_matrix, tridiag_matrix = lanczos_iteration(1000, 1000, a, q1)
+#     times.append(timeit.default_timer() - begin_time)
 
-print("\nMinimum of old: ", min(times))
-print("\nAverage of old: ", mean(times))
+# print("\nMinimum of old: ", min(times))
+# print("\nAverage of old: ", mean(times))

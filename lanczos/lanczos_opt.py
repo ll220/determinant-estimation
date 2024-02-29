@@ -1,10 +1,11 @@
 import numpy as np
 import timeit
-from statistics import mean
 import matplotlib.pyplot as plt
 import math
-import scipy
+import scipy.stats as stats
 from scipy.linalg.lapack import dstemr
+from pyinstrument import Profiler
+import cProfile
 
 
 LANCZOS_LOGGING = False
@@ -97,16 +98,24 @@ def estimate_determinant(a_matrix, num_v, dim, m):
     est_det = float(dim / num_v) * det_est
     return est_det
 
-# act_times = []
-# est_times = []
-# error_vals = []
-# dims = []
+act_times = []
+est_times = []
+error = []
+dims = []
+
+error_upper = []
+error_lower = []
+act_times_upper = []
+act_times_lower = []
+est_times_upper = []
+est_times_lower = []
 
 
 # for dim in range(10, 1000, 50):    
-#     average = 0.0
-#     average_act_time = 0.0
-#     average_est_time = 0.0
+#     error_vals = []
+#     act_times_vals = []
+#     est_times_vals = []
+
 #     for j in range(10):
 
 #         a_matrix = set_up_a_matrix(dim)
@@ -116,42 +125,59 @@ def estimate_determinant(a_matrix, num_v, dim, m):
 #         act_det = sign * logabsdet
 #         act_time = (timeit.default_timer() - act_begin_time)
 
-#         print(dim, logabsdet)
+#         # print(dim, logabsdet)
 
 #         est_begin_time = timeit.default_timer()
-#         est_determinant = estimate_determinant(a_matrix, 30, dim, dim)
+#         est_determinant = estimate_determinant(a_matrix, 30, dim, int(dim / 4))
 #         est_time = (timeit.default_timer() - est_begin_time)
 
-#         average += est_determinant - act_det
-#         average_act_time += act_time
-#         average_est_time += est_time
+#         error_vals.append(est_determinant - act_det)
+#         act_times_vals.append(act_time)
+#         est_times_vals.append(est_time)
+
+#     average_error = np.mean(error_vals)
+#     average_act_time = np.mean(act_times_vals)
+#     average_est_time = np.mean(est_times_vals)
 
 
-#     average /= 10.0
-#     average_act_time /= 10.0
-#     average_est_time /= 10.0
+#     error_ci = stats.norm.interval(0.95, loc=average_error, scale=np.std(error_vals)/np.sqrt(len(error_vals)))
+#     act_time_ci = stats.norm.interval(0.95, loc=average_act_time, scale=np.std(act_times_vals)/np.sqrt(len(act_times_vals)))
+#     est_time_ci = stats.norm.interval(0.95, loc=average_est_time, scale=np.std(est_times_vals)/np.sqrt(len(est_times_vals)))
 
-#     error_vals.append(average)
+#     error.append(average_error)
 #     act_times.append(average_act_time)
 #     est_times.append(average_est_time)
 #     dims.append(dim)
 
+#     error_upper.append(error_ci[1])
+#     error_lower.append(error_ci[0])
 
-# plot_title = "Average Error vs. Iterations with Dim=70"
+#     act_times_upper.append(act_time_ci[1])
+#     act_times_lower.append(act_time_ci[0])
+
+#     est_times_upper.append(est_time_ci[1])
+#     est_times_lower.append(est_time_ci[0])
+
+
+
+# plot_title = "Average Error vs. Iterations, Dims=200 (ci included)"
 # plt.xlabel('Iterations')
 # plt.ylabel('Error')
-# plt.plot(dims, error_vals)
-# plt.savefig('Increasing_iterations.png')
+# plt.plot(dims, error, color='black')
+# plt.fill_between(dims, error_upper, error_lower, color='lightblue')
+# plt.savefig('Increasing_iterations_ci.png')
 # plt.show()
 
-# plot_title = "Time vs. Dimensions for Determinant Estimations"
-# plt.plot(dims, act_times, label = "Standard Calc Times")
-# plt.plot(dims, est_times, label = "Lanczos Calc Times")
+# plot_title = "Time vs. Dimensions for Determinant Estimations, Reduced Iterations (ci included)"
+# plt.plot(dims, act_times, label = "Standard Calc Times", color='midnightblue')
+# plt.plot(dims, est_times, label = "Lanczos Calc Times", color='darkred')
 # plt.legend()
 # plt.title(plot_title)
-# plt.xlabel('Dimensions/Iterations')
+# plt.xlabel('Dimensions and 0.25 Iterations')
 # plt.ylabel('Time(sec)')
-# plt.savefig('Time_updated.png')
+# plt.fill_between(dims, act_times_upper, act_times_lower, color='lightblue')
+# plt.fill_between(dims, est_times_upper, est_times_lower, color='lightcoral')
+# plt.savefig('Time_reduced_iteraations_ci.png')
 # plt.show()
 
 # times = []
@@ -162,48 +188,56 @@ def estimate_determinant(a_matrix, num_v, dim, m):
 #     times.append(timeit.default_timer() - begin_time)
 
 # print(min(times))
+# a_matrix = set_up_a_matrix(500)
+# profiler = Profiler()
+# profiler.start()
 
+# estimate_determinant(a_matrix, 30, 500, 500)
 
+# profiler.stop()
+# profiler.print()
 
+a_matrix = set_up_a_matrix(500)
+cProfile.run('estimate_determinant(a_matrix, 30, 500, 500)')
 
-a = set_up_a_matrix(1000)
+# a = set_up_a_matrix(1000)
 
-q1 =  generate_input_vector(1000)         
-tridiag_matrix = lanczos_iteration(1000, 1000, a, q1)
+# q1 =  generate_input_vector(1000)         
+# tridiag_matrix = lanczos_iteration(1000, 1000, a, q1)
 
-begin_time = timeit.default_timer()
-eigenvalues, eigenvectors = np.linalg.eig(tridiag_matrix)
-print(timeit.default_timer() - begin_time, "normal method")
-eigenvalues = np.sort(eigenvalues)
+# begin_time = timeit.default_timer()
+# eigenvalues, eigenvectors = np.linalg.eig(tridiag_matrix)
+# print(timeit.default_timer() - begin_time, "normal method")
+# eigenvalues = np.sort(eigenvalues)
 
-begin_time = timeit.default_timer()
-d = tridiag_matrix.diagonal()
-e = np.empty(1000)
-e[0:999] = tridiag_matrix.diagonal(-1)
-e[-1] = 0.0 
+# begin_time = timeit.default_timer()
+# d = tridiag_matrix.diagonal()
+# e = np.empty(1000)
+# e[0:999] = tridiag_matrix.diagonal(-1)
+# e[-1] = 0.0 
 
-z = np.zeros((len(d), len(d)), dtype=np.float64)  # Workspace for eigenvectors
-ifst = 1  # Index of the first eigenvalue to be computed
-ilst = len(d)  # Index of the last eigenvalue to be computed
-il = 1  # Index of the first eigenvalue in the desired range
-iu = len(d)  # Index of the last eigenvalue in the desired range
-order = 'i'  # Compute eigenvalues and eigenvectors
+# z = np.zeros((len(d), len(d)), dtype=np.float64)  # Workspace for eigenvectors
+# ifst = 1  # Index of the first eigenvalue to be computed
+# ilst = len(d)  # Index of the last eigenvalue to be computed
+# il = 1  # Index of the first eigenvalue in the desired range
+# iu = len(d)  # Index of the last eigenvalue in the desired range
+# order = 'i'  # Compute eigenvalues and eigenvectors
 
-# Call dstemr
-geh, meh, guh, why = dstemr(d, e, len(d), ifst, ilst, il, iu)
-meh = np.sort(meh)
-# geh 1= number of eigenvalues/eigenvectors
-# meh 2= eigenvalues
-# guh 3= eigenvectors
-# why 4=info, 22 which means something happened in DLARRV...
-# BUT IT WORKING
-print(why)
+# # Call dstemr
+# geh, meh, guh, why = dstemr(d, e, len(d), ifst, ilst, il, iu)
+# meh = np.sort(meh)
+# # geh 1= number of eigenvalues/eigenvectors
+# # meh 2= eigenvalues
+# # guh 3= eigenvectors
+# # why 4=info, 22 which means something happened in DLARRV...
+# # BUT IT WORKING
+# print(why)
 
-# evalues, evectors = dstemr(d, e)
-print(timeit.default_timer() - begin_time, "dstemr method")
+# # evalues, evectors = dstemr(d, e)
+# print(timeit.default_timer() - begin_time, "dstemr method")
  
-set_diff = meh - eigenvalues
-print(np.around(set_diff, decimals=5))
+# set_diff = meh - eigenvalues
+# print(np.around(set_diff, decimals=5))
 
 
 
